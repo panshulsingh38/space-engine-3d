@@ -83,6 +83,9 @@ export class ModularRocket {
     this.landedCelestialKey = null;
     this.landedLat = 0;
     this.landedLongOffset = 0;
+    this.lastLandedCelestialKey = 'earth';
+    this.lastLandedLat = Math.PI / 2;
+    this.lastLandedLongOffset = 0;
     this.justLanded = false;
     this.hasCrashed = false;
     this.crashSpeed = 0;
@@ -313,6 +316,9 @@ export class ModularRocket {
     this.landedCelestialKey = 'earth';
     this.landedLat = Math.PI / 2; // equator
     this.landedLongOffset = 0;
+    this.lastLandedCelestialKey = 'earth';
+    this.lastLandedLat = Math.PI / 2;
+    this.lastLandedLongOffset = 0;
     this.justLanded = false;
     this.hasCrashed = false;
 
@@ -392,7 +398,7 @@ export class ModularRocket {
       const currentLong = this.landedLongOffset + cel.mesh.rotation.y;
       
       // Normal offset from center of planet
-      const r = cel.radius + 0.45;
+      const r = cel.radius + this.totalHeight() / 2;
       const relX = r * Math.sin(this.landedLat) * Math.cos(currentLong);
       const relY = r * Math.cos(this.landedLat);
       const relZ = r * Math.sin(this.landedLat) * Math.sin(currentLong);
@@ -585,15 +591,16 @@ export class ModularRocket {
       const toCel = new THREE.Vector3().subVectors(cel.position, this.position);
       const dist = toCel.length();
 
-      if (dist < cel.radius) {
+      const hHalf = this.totalHeight() / 2;
+      if (dist < cel.radius + hHalf) {
         const celVel = universe.getCelestialVelocity(key);
         
         // Surface rotational velocity calculation
-        const r = cel.radius;
+        const r = cel.radius + hHalf;
         const toCraft = toCel.clone().multiplyScalar(-1);
         const latAngle = Math.acos(toCraft.y / Math.max(0.1, toCraft.length()));
         const longAngle = Math.atan2(toCraft.z, toCraft.x);
-        const rPerp = r * Math.sin(latAngle);
+        const rPerp = cel.radius * Math.sin(latAngle);
         const rotSpeedVec = new THREE.Vector3(
           -rPerp * cel.rotationSpeed * Math.sin(longAngle),
           0,
@@ -615,11 +622,14 @@ export class ModularRocket {
           this.landedCelestialKey = key;
           this.landedLat = latAngle;
           this.landedLongOffset = longAngle - cel.mesh.rotation.y;
+          this.lastLandedCelestialKey = key;
+          this.lastLandedLat = latAngle;
+          this.lastLandedLongOffset = this.landedLongOffset;
           this.justLanded = true;
           this.velocity.copy(surfaceVel);
           
           const normal = toCraft.clone().normalize();
-          this.position.copy(cel.position).addScaledVector(normal, cel.radius + 0.45);
+          this.position.copy(cel.position).addScaledVector(normal, cel.radius + hHalf);
           break;
         }
       }
@@ -764,5 +774,49 @@ export class ModularRocket {
     }
     
     return points;
+  }
+
+  totalHeight() {
+    let height = 0;
+    this.compiledStages.forEach(stage => {
+      stage.forEach(p => {
+        height += this.getPartHeight(p);
+      });
+    });
+    return height;
+  }
+
+  getPartHeight(p) {
+    if (p.solid) {
+      if (p.key === 'flea-srb') return 2.0;
+      if (p.key === 'hammer-srb') return 2.8;
+      if (p.key === 'thumper-srb') return 4.0;
+      if (p.key === 'kickback-srb') return 5.6;
+      return 3.0;
+    }
+    if (p.key === 'jumbo-64') return 5.0;
+    if (p.key === 'x200-32') return 4.0;
+    if (p.key === 'x200-16') return 2.6;
+    if (p.key === 'fl-t100') return 1.0;
+    if (p.key === 'fl-t200') return 1.4;
+    if (p.key === 'oscar-b') return 0.8;
+    if (p.key === 'mk2-fuselage') return 2.8;
+    if (p.type === 'command') return 2.0;
+    if (p.type === 'tank') return (p.key === 'fl-t800' ? 4.0 : (p.key === 'rcs-tank' ? 2.0 : 2.0));
+    if (p.type === 'propulsion') {
+      if (p.key === 'poodle-150') return 1.0;
+      if (p.key === 'nerv-nuclear') return 2.5;
+      if (p.key === 'lvt45-engine') return 1.2;
+      if (p.key === 'spark-engine' || p.key === 'juno-engine') return 0.8;
+      if (p.key === 'terrier-engine') return 1.0;
+      if (p.key === 'rhino-engine') return 1.8;
+      return 1.2;
+    }
+    if (p.decoupler || p.key === 'decoupler') return 0.4;
+    if (p.key === 'nose-cone') return 2.0;
+    if (p.key === 'wing-fin') return 0.8;
+    if (p.key === 'landing-legs') return 0.5;
+    if (p.key === 'parachute') return 0.6;
+    return 0.8;
   }
 }

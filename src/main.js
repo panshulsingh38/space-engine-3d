@@ -411,12 +411,163 @@ function buildVABHangar() {
     vabHangar.remove(vabHangar.children[0]);
   }
 
+  const rHeight = totalHeightCompiled(spacecraft);
+  const gridY = -rHeight / 2;
+
   const grid = new THREE.GridHelper(120, 48, 0x00f0ff, 0x2c2d33);
-  grid.position.y = -7.74;
+  grid.position.y = gridY;
   vabHangar.add(grid);
 }
 
 buildVABHangar();
+
+// ==========================================
+// LOCAL ENVIRONMENT & LAUNCHPAD (SFS-Style)
+// ==========================================
+const localSurfaceGroup = new THREE.Group();
+const localPadGroup = new THREE.Group();
+const localTerrainGroup = new THREE.Group();
+
+localSurfaceGroup.add(localPadGroup);
+localSurfaceGroup.add(localTerrainGroup);
+scene.add(localSurfaceGroup);
+
+let terrainMesh = null;
+let gantry = null;
+
+function buildLocalSurface() {
+  // 1. Concrete Launch Pad Platform
+  const padGeo = new THREE.CylinderGeometry(80, 80, 2, 64);
+  const padMat = new THREE.MeshStandardMaterial({
+    color: 0x333538,
+    roughness: 0.85,
+    metalness: 0.15
+  });
+  const padMesh = new THREE.Mesh(padGeo, padMat);
+  padMesh.position.y = -1; // sit flush with terrain surface
+  localPadGroup.add(padMesh);
+
+  // Yellow dashed safety border ring
+  const borderGeo = new THREE.RingGeometry(18, 18.5, 64);
+  const borderMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, side: THREE.DoubleSide });
+  const border = new THREE.Mesh(borderGeo, borderMat);
+  border.rotation.x = Math.PI / 2;
+  border.position.y = 0.02;
+  localPadGroup.add(border);
+
+  // 2. Launch Tower (Gantry) Truss Structure
+  gantry = new THREE.Group();
+  gantry.position.set(0, 15, -12); // placed 12 meters behind rocket launch pad center
+  
+  // Vertical main beams (4 corner posts)
+  const beamGeo = new THREE.CylinderGeometry(0.18, 0.18, 30, 8);
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x8b251e, metalness: 0.8, roughness: 0.3 }); // industrial orange-red
+  
+  for (let x = -2.5; x <= 2.5; x += 5) {
+    for (let z = -2.5; z <= 2.5; z += 5) {
+      const post = new THREE.Mesh(beamGeo, metalMat);
+      post.position.set(x, 0, z);
+      gantry.add(post);
+    }
+  }
+  
+  // Cross bracing trusses (diagonal support beams at multiple height levels)
+  const trussMat = new THREE.MeshStandardMaterial({ color: 0xdde0e5, metalness: 0.9, roughness: 0.25 }); // silver steel
+  for (let h = -14; h < 15; h += 4) {
+    // Horizontal frame rings
+    const frameGeo = new THREE.BoxGeometry(5.2, 0.2, 5.2);
+    const frame = new THREE.Mesh(frameGeo, metalMat);
+    frame.position.y = h;
+    gantry.add(frame);
+    
+    // Diagonal braces
+    const braceGeo = new THREE.CylinderGeometry(0.08, 0.08, 6.4, 8);
+    
+    // X brace front (z = 2.5)
+    const b1 = new THREE.Mesh(braceGeo, trussMat);
+    b1.position.set(0, h + 2, 2.5);
+    b1.rotation.z = 0.68;
+    gantry.add(b1);
+    const b2 = new THREE.Mesh(braceGeo, trussMat);
+    b2.position.set(0, h + 2, 2.5);
+    b2.rotation.z = -0.68;
+    gantry.add(b2);
+    
+    // X brace back (z = -2.5)
+    const b1_b = new THREE.Mesh(braceGeo, trussMat);
+    b1_b.position.set(0, h + 2, -2.5);
+    b1_b.rotation.z = 0.68;
+    gantry.add(b1_b);
+    const b2_b = new THREE.Mesh(braceGeo, trussMat);
+    b2_b.position.set(0, h + 2, -2.5);
+    b2_b.rotation.z = -0.68;
+    gantry.add(b2_b);
+    
+    // X brace left (x = -2.5)
+    const b3 = new THREE.Mesh(braceGeo, trussMat);
+    b3.position.set(-2.5, h + 2, 0);
+    b3.rotation.x = 0.68;
+    gantry.add(b3);
+    const b4 = new THREE.Mesh(braceGeo, trussMat);
+    b4.position.set(-2.5, h + 2, 0);
+    b4.rotation.x = -0.68;
+    gantry.add(b4);
+    
+    // X brace right (x = 2.5)
+    const b5 = new THREE.Mesh(braceGeo, trussMat);
+    b5.position.set(2.5, h + 2, 0);
+    b5.rotation.x = 0.68;
+    gantry.add(b5);
+    const b6 = new THREE.Mesh(braceGeo, trussMat);
+    b6.position.set(2.5, h + 2, 0);
+    b6.rotation.x = -0.68;
+    gantry.add(b6);
+  }
+  
+  // Flashing red warning beacon at the top of gantry
+  const lightGeo = new THREE.SphereGeometry(0.5, 16, 16);
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const beacon = new THREE.Mesh(lightGeo, lightMat);
+  beacon.position.y = 15.3;
+  gantry.add(beacon);
+  localPadGroup.add(gantry);
+
+  // 3. Floodlight Poles
+  const poleGeo = new THREE.CylinderGeometry(0.12, 0.15, 8, 8);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x4a4d52, metalness: 0.8 });
+  const polePositions = [
+    [25, 25],
+    [-25, 25],
+    [25, -25],
+    [-25, -25]
+  ];
+  
+  polePositions.forEach(([px, pz]) => {
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.set(px, 4, pz);
+    localPadGroup.add(pole);
+
+    // Spotlight pointing at rocket base
+    const spot = new THREE.SpotLight(0xffffff, 45, 60, Math.PI / 4, 0.5, 1.2);
+    spot.position.set(px, 7.8, pz);
+    spot.target.position.set(0, 2, 0);
+    localPadGroup.add(spot);
+    localPadGroup.add(spot.target);
+  });
+
+  // 4. Surrounding Terrain Mesh
+  const terrainGeo = new THREE.CylinderGeometry(6000, 6000, 1.2, 32);
+  const terrainMat = new THREE.MeshStandardMaterial({
+    color: 0x2d5a27,
+    roughness: 0.95,
+    metalness: 0.05
+  });
+  terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+  terrainMesh.position.y = -1.6; // slightly lower than the concrete pad
+  localTerrainGroup.add(terrainMesh);
+}
+
+buildLocalSurface();
 
 // ==========================================
 // DETAILED 3D ROCKET PART GENERATION (KSP-Style)
@@ -1763,6 +1914,92 @@ function animate(timestamp) {
       cel.mesh.position.copy(relPos);
     }
 
+    // Atmosphere scattering & local surface structures (SFS-Style)
+    const altitudeInfo = getAltitudeAboveSurface();
+    const nearestKey = altitudeInfo.key;
+    const altitude = altitudeInfo.altitude;
+    const cel = universe.celestials[nearestKey];
+
+    const ATMOSPHERES = {
+      earth: { color: 0x5fa3fc, height: 75000, maxFog: 0.0035 },
+      mars: { color: 0xb05535, height: 50000, maxFog: 0.0028 },
+      venus: { color: 0xd9ab56, height: 65000, maxFog: 0.005 }
+    };
+
+    if (nearestKey in ATMOSPHERES && altitude < ATMOSPHERES[nearestKey].height) {
+      const atm = ATMOSPHERES[nearestKey];
+      const t = altitude / atm.height;
+      const skyIntensity = Math.max(0, 1.0 - t);
+      const skyColor = new THREE.Color(atm.color).multiplyScalar(skyIntensity);
+
+      scene.background = skyColor;
+      if (scene.fog) {
+        scene.fog.color.copy(skyColor);
+        scene.fog.density = atm.maxFog * (1.0 - t) + 0.00000000005 * t;
+      }
+      starMat.opacity = 0.58 * t;
+    } else {
+      scene.background = new THREE.Color(0x020108);
+      if (scene.fog) {
+        scene.fog.color.set(0x020108);
+        scene.fog.density = 0.00000000005;
+      }
+      starMat.opacity = 0.58;
+    }
+
+    if (altitude < 35000) {
+      localSurfaceGroup.visible = true;
+
+      if (terrainMesh) {
+        if (nearestKey === 'earth') terrainMesh.material.color.setHex(0x223c1e);
+        else if (nearestKey === 'mars') terrainMesh.material.color.setHex(0x943d23);
+        else if (nearestKey === 'venus') terrainMesh.material.color.setHex(0x8a7238);
+        else terrainMesh.material.color.setHex(0x3a3b3d);
+      }
+
+      // Mobile Terrain under rocket
+      const toCraft = new THREE.Vector3().subVectors(spacecraft.position, cel.position).normalize();
+      const relPlanetCenter = new THREE.Vector3().subVectors(cel.position, spacecraft.position);
+      localTerrainGroup.position.copy(relPlanetCenter).addScaledVector(toCraft, cel.radius);
+      
+      const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), toCraft);
+      localTerrainGroup.quaternion.copy(alignQuat);
+
+      // Fixed Launch Pad tower and platform
+      if (spacecraft.lastLandedCelestialKey === nearestKey) {
+        const currentLong = spacecraft.lastLandedLongOffset + cel.mesh.rotation.y;
+        const padNormal = new THREE.Vector3(
+          Math.sin(spacecraft.lastLandedLat) * Math.cos(currentLong),
+          Math.cos(spacecraft.lastLandedLat),
+          Math.sin(spacecraft.lastLandedLat) * Math.sin(currentLong)
+        );
+
+        const relPadPos = new THREE.Vector3().copy(relPlanetCenter).addScaledVector(padNormal, cel.radius);
+        
+        if (relPadPos.length() < 12000) {
+          localPadGroup.visible = true;
+          localPadGroup.position.copy(relPadPos);
+          
+          const padQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), padNormal);
+          localPadGroup.quaternion.copy(padQuat);
+
+          // Blink warning beacon at top of tower
+          if (gantry && gantry.children.length > 0) {
+            const beaconMesh = gantry.children[gantry.children.length - 1];
+            if (beaconMesh && beaconMesh.material) {
+              beaconMesh.material.color.setHex((Math.floor(timestamp * 0.002) % 2 === 0) ? 0xff0000 : 0x220000);
+            }
+          }
+        } else {
+          localPadGroup.visible = false;
+        }
+      } else {
+        localPadGroup.visible = false;
+      }
+    } else {
+      localSurfaceGroup.visible = false;
+    }
+
     // Trajectory rendering
     updateTrajectoryLine();
 
@@ -1801,7 +2038,6 @@ function animate(timestamp) {
 
     // UI Telemetry updates
     document.getElementById('hud-velocity').textContent = spacecraft.getSpeed(universe).toFixed(3);
-    const altitudeInfo = getAltitudeAboveSurface();
     const altitudeValue = altitudeInfo.altitude >= 1000 ? altitudeInfo.altitude / 1000 : altitudeInfo.altitude;
     document.getElementById('hud-altitude').textContent = altitudeValue.toFixed(altitudeInfo.altitude >= 1000 ? 1 : 0);
     document.getElementById('hud-altitude-unit').textContent = altitudeInfo.altitude >= 1000 ? 'km' : 'm';
@@ -1830,6 +2066,15 @@ function animate(timestamp) {
     vabHangar.visible = true;
     flameMesh.visible = false;
     if (trajectoryLine) trajectoryLine.visible = false;
+
+    // Hide surface elements in VAB design mode
+    localSurfaceGroup.visible = false;
+    scene.background = new THREE.Color(0x020108);
+    if (scene.fog) {
+      scene.fog.color.set(0x020108);
+      scene.fog.density = 0.00000000005;
+    }
+    starMat.opacity = 0.58;
 
     // Hide all celestial meshes in VAB
     for (let key in universe.celestials) {
