@@ -603,6 +603,112 @@ export class StellarUniverse {
       position: new THREE.Vector3()
     };
 
+    // 10. URANUS (Ice Giant with faint rings)
+    // Radius: 25,362 km = 2.5362e7 m, Mass: 8.681e25 kg, Orbit: 2.8710e12 m
+    const uranMat = new THREE.MeshStandardMaterial({
+      map: createPlanetTexture(1024, 512, [0xb4e1e3, 0x98cfd1, 0x82bec2, 0x5a9a9e], {
+        seed: 99,
+        bands: { count: 8, noise: 3, color: 0xffffff, strength: 0.08 }
+      }),
+      roughness: 0.78
+    });
+    const uranMesh = new THREE.Mesh(unitGeo, uranMat);
+    uranMesh.scale.setScalar(2.5362e7);
+    this.scene.add(uranMesh);
+    addAtmosphereShell(uranMesh, 0xd0f5f7, 1.025, 0.15);
+    sunMesh.add(createOrbitRing(2.8710e12));
+
+    // Uranus faint rings (tilted on its side!)
+    const uranRingGeo = new THREE.RingGeometry(1.5, 2.0, 64);
+    const uranRingMat = new THREE.MeshStandardMaterial({
+      color: 0x8ecad6,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.22,
+      roughness: 0.95
+    });
+    const uranRings = new THREE.Mesh(uranRingGeo, uranRingMat);
+    uranRings.rotation.x = Math.PI / 12; // tilted roll axis
+    uranRings.rotation.y = Math.PI / 2.1;
+    uranMesh.add(uranRings);
+
+    this.celestials['uranus'] = {
+      key: 'uranus',
+      mesh: uranMesh,
+      name: 'Uranus',
+      type: 'Ice Giant',
+      mass: 8.681e25,
+      mu: this.G * 8.681e25,
+      radius: 2.5362e7,
+      distance: 2.8710e12,
+      angle: Math.random() * Math.PI * 2,
+      orbitPeriod: 84.01 * 365.25 * 24 * 3600,
+      rotationSpeed: -1.04e-4,
+      parent: 'sun',
+      position: new THREE.Vector3()
+    };
+
+    // 11. NEPTUNE (Ice Giant)
+    // Radius: 24,622 km = 2.4622e7 m, Mass: 1.024e26 kg, Orbit: 4.4983e12 m
+    const neptMat = new THREE.MeshStandardMaterial({
+      map: createPlanetTexture(1024, 512, [0x274687, 0x3d63b8, 0x1f3972, 0x4f7fe8], {
+        seed: 111,
+        bands: { count: 12, noise: 5, color: 0x001144, strength: 0.15 }
+      }),
+      roughness: 0.75
+    });
+    const neptMesh = new THREE.Mesh(unitGeo, neptMat);
+    neptMesh.scale.setScalar(2.4622e7);
+    this.scene.add(neptMesh);
+    addAtmosphereShell(neptMesh, 0x5a8eff, 1.025, 0.18);
+    sunMesh.add(createOrbitRing(4.4983e12));
+
+    this.celestials['neptune'] = {
+      key: 'neptune',
+      mesh: neptMesh,
+      name: 'Neptune',
+      type: 'Ice Giant',
+      mass: 1.024e26,
+      mu: this.G * 1.024e26,
+      radius: 2.4622e7,
+      distance: 4.4983e12,
+      angle: Math.random() * Math.PI * 2,
+      orbitPeriod: 164.82 * 365.25 * 24 * 3600,
+      rotationSpeed: 1.08e-4,
+      parent: 'sun',
+      position: new THREE.Vector3()
+    };
+
+    // 12. PLUTO (Dwarf Planet)
+    // Radius: 1,188.3 km = 1.1883e6 m, Mass: 1.303e22 kg, Orbit: 5.9064e12 m
+    const plutMat = new THREE.MeshStandardMaterial({
+      map: createPlanetTexture(512, 256, [0x7a6b58, 0x9c8a75, 0xbfac95, 0x544738], {
+        seed: 122,
+        poles: { start: 0.88, color: 0xffffff, strength: 0.5 }
+      }),
+      roughness: 0.95
+    });
+    const plutMesh = new THREE.Mesh(unitGeo, plutMat);
+    plutMesh.scale.setScalar(1.1883e6);
+    this.scene.add(plutMesh);
+    sunMesh.add(createOrbitRing(5.9064e12));
+
+    this.celestials['pluto'] = {
+      key: 'pluto',
+      mesh: plutMesh,
+      name: 'Pluto',
+      type: 'Dwarf Planet',
+      mass: 1.303e22,
+      mu: this.G * 1.303e22,
+      radius: 1.1883e6,
+      distance: 5.9064e12,
+      angle: Math.random() * Math.PI * 2,
+      orbitPeriod: 248.0 * 365.25 * 24 * 3600,
+      rotationSpeed: -1.22e-5,
+      parent: 'sun',
+      position: new THREE.Vector3()
+    };
+
     // Initialize all celestial coordinate vectors
     this.update(0);
   }
