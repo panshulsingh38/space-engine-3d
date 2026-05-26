@@ -354,6 +354,9 @@ document.getElementById('btn-return-vab').addEventListener('click', () => {
   screenFlight.classList.add('hidden');
   screenVAB.classList.remove('hidden');
   
+  // Reset camera Up axis for VAB hangar
+  camera.up.set(0, 1, 0);
+  
   // reset time warp
   activeWarpIndex = 0;
   updateTimeWarpDisplay();
@@ -1897,10 +1900,24 @@ function animate(timestamp) {
     rocketGroup.position.set(0, 0, 0);
     rocketGroup.quaternion.copy(spacecraft.quaternion);
 
-    // Orbit Camera position
-    camera.position.x = Math.sin(flightOrbitY) * Math.cos(flightOrbitX) * flightOrbitDist;
-    camera.position.z = Math.cos(flightOrbitY) * Math.cos(flightOrbitX) * flightOrbitDist;
-    camera.position.y = Math.sin(flightOrbitX) * flightOrbitDist;
+    const altitudeInfo = getAltitudeAboveSurface();
+    const nearestKey = altitudeInfo.key;
+    const altitude = altitudeInfo.altitude;
+    const cel = universe.celestials[nearestKey];
+
+    // Orbit Camera position (aligned with nearest planet horizon for SFS-style launch view)
+    // Normal vector pointing straight up from planet center to rocket
+    const localNormal = new THREE.Vector3().copy(cel.mesh.position).normalize().negate();
+    const horizonQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), localNormal);
+
+    const localOffset = new THREE.Vector3(
+      Math.sin(flightOrbitY) * Math.cos(flightOrbitX) * flightOrbitDist,
+      Math.sin(flightOrbitX) * flightOrbitDist,
+      Math.cos(flightOrbitY) * Math.cos(flightOrbitX) * flightOrbitDist
+    );
+
+    camera.position.copy(localOffset).applyQuaternion(horizonQuat);
+    camera.up.copy(new THREE.Vector3(0, 1, 0)).applyQuaternion(horizonQuat);
     camera.lookAt(0, 0, 0);
 
     // Starfield centered at camera to appear infinite
@@ -1915,10 +1932,6 @@ function animate(timestamp) {
     }
 
     // Atmosphere scattering & local surface structures (SFS-Style)
-    const altitudeInfo = getAltitudeAboveSurface();
-    const nearestKey = altitudeInfo.key;
-    const altitude = altitudeInfo.altitude;
-    const cel = universe.celestials[nearestKey];
 
     const ATMOSPHERES = {
       earth: { color: 0x5fa3fc, height: 75000, maxFog: 0.0035 },
