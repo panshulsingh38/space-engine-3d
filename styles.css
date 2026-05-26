@@ -156,6 +156,7 @@ body, html {
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex-grow: 1;
 }
 
@@ -482,6 +483,7 @@ body, html {
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex-grow: 1;
 }
 

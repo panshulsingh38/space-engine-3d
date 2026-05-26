@@ -1511,7 +1511,9 @@ canvas.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchmove', (e) => {
-  e.preventDefault();
+  if (isDraggingVAB || e.touches.length === 2) {
+    if (e.cancelable) e.preventDefault();
+  }
   if (isDraggingVAB && e.touches.length === 1) {
     const deltaX = e.touches[0].clientX - prevMouseX;
     const deltaY = e.touches[0].clientY - prevMouseY;
