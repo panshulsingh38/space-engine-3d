@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>COSMOS - KSP Rocket Customizer & 3D Space Simulator</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Global Runtime Error Visualizer -->
+  <script>
+    window.addEventListener('error', function(e) {
+      const errDiv = document.createElement('div');
+      errDiv.id = 'fatal-error-hud';
+      errDiv.style.position = 'fixed';
+      errDiv.style.top = '20px';
+      errDiv.style.left = '20px';
+      errDiv.style.right = '20px';
+      errDiv.style.background = 'rgba(255, 30, 60, 0.95)';
+      errDiv.style.color = 'white';
+      errDiv.style.padding = '24px';
+      errDiv.style.zIndex = '999999';
+      errDiv.style.fontFamily = 'monospace';
+      errDiv.style.fontSize = '14px';
+      errDiv.style.borderRadius = '8px';
+      errDiv.style.border = '2px solid #ff0000';
+      errDiv.style.boxShadow = '0 0 30px rgba(255,0,0,0.5)';
+      errDiv.innerHTML = `
+        <h3 style="margin-bottom: 10px; font-family: sans-serif; text-transform: uppercase;">⚠ WebGL / Javascript Runtime Crash</h3>
+        <strong>Message:</strong> ${e.message}<br>
+        <strong>Source:</strong> ${e.filename || 'unknown'}:${e.lineno || 0}<br><br>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.85);">
+          * Note: If you see a bare specifier error, make sure you are opening the app via <strong>http://localhost:3000</strong> (Vite server) rather than double-clicking the HTML file directly in File Explorer.
+        </div>
+      `;
+      document.body.appendChild(errDiv);
+    });
+  </script>
+</head>
+<body>
+  <!-- Three.js Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- ==========================================
+       VAB (Vehicle Assembly Building) EDITOR HUD
+       ========================================== -->
+  <div id="vab-screen" class="hud-screen VAB-layout">
+    <!-- KSP-Style Top Hangar Menu Bar -->
+    <header class="vab-top-menu">
+      <div class="vab-menu-left">
+        <span class="vab-logo">KSP-COSMOS</span>
+        <div class="namer-container">
+          <span class="namer-label">VESSEL:</span>
+          <input type="text" id="rocket-namer" value="Untitled Spacecraft" maxlength="24">
+        </div>
+      </div>
+      <div class="vab-menu-right">
+        <button id="btn-clear-rocket" class="btn btn-menu-danger">CLEAR</button>
+        <button id="btn-compile-launch" class="btn btn-menu-success">LAUNCH</button>
+      </div>
+    </header>
+
+    <!-- Left Toolbar and Parts catalog -->
+    <section class="vab-left-container">
+      <!-- Vertical KSP Toolbar -->
+      <div class="vab-toolbar-vertical">
+        <button id="tab-command" class="toolbar-btn active" title="Command Modules">
+          <span class="icon">🚀</span>
+          <span class="label">CMD</span>
+        </button>
+        <button id="tab-propulsion" class="toolbar-btn" title="Engines & Propulsion">
+          <span class="icon">🔥</span>
+          <span class="label">PROP</span>
+        </button>
+        <button id="tab-tanks" class="toolbar-btn" title="Fuel Tanks">
+          <span class="icon">🛢</span>
+          <span class="label">TANK</span>
+        </button>
+        <button id="tab-utilities" class="toolbar-btn" title="Utilities & Struct">
+          <span class="icon">🔧</span>
+          <span class="label">UTIL</span>
+        </button>
+        <button id="tab-presets" class="toolbar-btn" title="Pre-built Blueprints">
+          <span class="icon">📋</span>
+          <span class="label">BLUEPRINT</span>
+        </button>
+      </div>
+
+      <!-- Parts Grid Panel -->
+      <div class="vab-parts-panel glass-panel">
+        <div class="hud-panel-header">
+          <span>▲ PARTS CATALOGUE</span>
+        </div>
+        <div class="vab-content">
+          <!-- Command category items -->
+          <div id="cat-command" class="parts-cat-grid active">
+            <div class="part-card" data-part="mk1-pod">
+              <div class="part-name">Mk1 Command Pod</div>
+              <div class="part-desc">Capsule for single pilot. Adds flight stability.</div>
+              <div class="part-stats">MASS: 0.8t</div>
+            </div>
+            <div class="part-card" data-part="mk3-bridge">
+              <div class="part-name">Mk3 Flight Bridge</div>
+              <div class="part-desc">Heavy control bridge for massive structures.</div>
+              <div class="part-stats">MASS: 3.5t</div>
+            </div>
+          </div>
+
+          <!-- Propulsion category items -->
+          <div id="cat-propulsion" class="parts-cat-grid">
+            <div class="part-card" data-part="srb-500">
+              <div class="part-name">SRB-500 Booster</div>
+              <div class="part-desc">Solid fuel booster. High thrust, non-throttleable.</div>
+              <div class="part-stats">THRUST: 250kN | Isp: 250s</div>
+            </div>
+            <div class="part-card" data-part="mainsail-900">
+              <div class="part-name">Mainsail Engine</div>
+              <div class="part-desc">Liquid vacuum thruster. Gimballed thrust controls.</div>
+              <div class="part-stats">THRUST: 400kN | Isp: 320s</div>
+            </div>
+            <div class="part-card" data-part="lvt45-engine">
+              <div class="part-name">LV-T45 Liquid Engine</div>
+              <div class="part-desc">Compact liquid engine. Active gimbal steering.</div>
+              <div class="part-stats">THRUST: 200kN | Isp: 320s</div>
+            </div>
+            <div class="part-card" data-part="poodle-150">
+              <div class="part-name">RE-L4 Poodle Engine</div>
+              <div class="part-desc">Vacuum thruster. Extremely efficient for planetary transfers.</div>
+              <div class="part-stats">THRUST: 220kN | Isp: 350s</div>
+            </div>
+            <div class="part-card" data-part="nerv-nuclear">
+              <div class="part-name">LV-N "Nerv" Engine</div>
+              <div class="part-desc">Nuclear thermal engine. Unrivaled vacuum efficiency.</div>
+              <div class="part-stats">THRUST: 75kN | Isp: 800s</div>
+            </div>
+            <div class="part-card" data-part="xenon-50">
+              <div class="part-name">Ion Thruster</div>
+              <div class="part-desc">Xenon gas electric engine. Low thrust, high efficiency.</div>
+              <div class="part-stats">THRUST: 12kN | Isp: 4200s</div>
+            </div>
+          </div>
+
+          <!-- Fuel Tanks category items -->
+          <div id="cat-tanks" class="parts-cat-grid">
+            <div class="part-card" data-part="fl-t400">
+              <div class="part-name">FL-T400 Tank</div>
+              <div class="part-desc">Standard liquid fuel & oxidizer tank.</div>
+              <div class="part-stats">FUEL: 4.0t | DRY: 0.5t</div>
+            </div>
+            <div class="part-card" data-part="fl-t800">
+              <div class="part-name">FL-T800 Heavy</div>
+              <div class="part-desc">Double capacity heavy fuel cell.</div>
+              <div class="part-stats">FUEL: 8.0t | DRY: 1.0t</div>
+            </div>
+            <div class="part-card" data-part="jumbo-64">
+              <div class="part-name">Jumbo-64 Orange Tank</div>
+              <div class="part-desc">Giant high-capacity orange tank. For heavy lifts.</div>
+              <div class="part-stats">FUEL: 32.0t | DRY: 4.0t</div>
+            </div>
+            <div class="part-card" data-part="xenon-tank">
+              <div class="part-name">Xenon Container</div>
+              <div class="part-desc">Xenon gas tank for ion propulsion.</div>
+              <div class="part-stats">GAS: 0.8t | DRY: 0.1t</div>
+            </div>
+            <div class="part-card" data-part="rcs-tank">
+              <div class="part-name">FL-R25 Monoprop Tank</div>
+              <div class="part-desc">Stores monopropellant fuel for RCS stabilization control.</div>
+              <div class="part-stats">FUEL: 1.6t | DRY: 0.4t</div>
+            </div>
+          </div>
+
+          <!-- Utilities category items -->
+          <div id="cat-utilities" class="parts-cat-grid">
+            <div class="part-card" data-part="solar-panel">
+              <div class="part-name">Solar Panels</div>
+              <div class="part-desc">Deployable solar cell arrays. Regenerates battery power.</div>
+              <div class="part-stats">MASS: 0.1t</div>
+            </div>
+            <div class="part-card" data-part="decoupler">
+              <div class="part-name">Stack Decoupler</div>
+              <div class="part-desc">Explosive staging separation ring. Drops lower stages.</div>
+              <div class="part-stats">MASS: 0.2t</div>
+            </div>
+            <div class="part-card" data-part="nose-cone">
+              <div class="part-name">Aerodynamic Nose Cone</div>
+              <div class="part-desc">Reduces aerodynamic drag. Mounts at the top of the stack.</div>
+              <div class="part-stats">MASS: 0.08t</div>
+            </div>
+            <div class="part-card" data-part="wing-fin">
+              <div class="part-name">AV-R8 Aerodynamic Fin</div>
+              <div class="part-desc">Aerodynamic stabilizer winglet. Helps atmospheric steering.</div>
+              <div class="part-stats">MASS: 0.1t</div>
+            </div>
+            <div class="part-card" data-part="landing-legs">
+              <div class="part-name">LT-2 Landing Struts</div>
+              <div class="part-desc">Heavy duty extendable legs for planetary touchdowns.</div>
+              <div class="part-stats">MASS: 0.25t</div>
+            </div>
+            <div class="part-card" data-part="parachute">
+              <div class="part-name">Mk16 Parachute</div>
+              <div class="part-desc">Deploys dynamically when descending below 5km.</div>
+              <div class="part-stats">MASS: 0.1t</div>
+            </div>
+          </div>
+
+          <!-- Presets category items -->
+          <div id="cat-presets" class="parts-cat-grid">
+            <div class="preset-card" data-preset="kerbal-x">
+              <div class="preset-name">Kerbal X (Medium Lift)</div>
+              <div class="preset-desc">Famous medium-range lunar probe launcher from KSP.</div>
+              <div class="preset-parts font-mono">Mk1 Pod, FL-T800, Decoupler, FL-T800, Mainsail</div>
+            </div>
+            <div class="preset-card" data-preset="saturn-v">
+              <div class="preset-name">Saturn V (Apollo Heavy)</div>
+              <div class="preset-desc">Massive heavy-lift moon rocket design.</div>
+              <div class="preset-parts font-mono">Mk3 Bridge, FL-T400, Mainsail, Decoupler, FL-T800, Decoupler, FL-T800, Mainsail, 2x Booster</div>
+            </div>
+            <div class="preset-card" data-preset="ion-explorer">
+              <div class="preset-name">Voyager (Ion Probe)</div>
+              <div class="preset-desc">High efficiency xenon gas explorer for outer solar system.</div>
+              <div class="preset-parts font-mono">Mk1 Pod, Xenon Tank, Ion Thruster, 2x Solar Panels</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Staging scheme on the right side -->
+    <section class="vab-sidebar right-panel glass-panel" style="top: 80px; bottom: 65px; right: 20px; width: 280px; position: absolute; z-index: 5;">
+      <div class="hud-panel-header">
+        <span>▼ STAGING SCHEME</span>
+      </div>
+      <div class="vab-content" style="padding: 15px;">
+        <div class="hud-group">
+          <div class="staging-stack" id="staging-list">
+            <!-- Stages will render dynamically here -->
+          </div>
+        </div>
+        <div class="hud-group">
+          <span class="hud-group-label">SELECTED PART MOVE</span>
+          <div class="part-move-pad">
+            <button id="btn-part-up" class="btn btn-move">UP</button>
+            <button id="btn-part-left" class="btn btn-move">LEFT</button>
+            <button id="btn-part-right" class="btn btn-move">RIGHT</button>
+            <button id="btn-part-down" class="btn btn-move">DOWN</button>
+          </div>
+          <div class="part-move-pad stack-pad">
+            <button id="btn-stack-up" class="btn btn-move">STACK UP</button>
+            <button id="btn-stack-down" class="btn btn-move">STACK DOWN</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Telemetry Bar -->
+    <footer class="vab-bottom-bar">
+      <div class="vab-bottom-stat">
+        <span class="label">PARTS TOTAL:</span>
+        <span id="vab-part-count" class="val" style="color: #00f0ff;">0</span>
+      </div>
+      <div class="vab-bottom-stat">
+        <span class="label">WET MASS:</span>
+        <span id="vab-mass-wet" class="val" style="color: #00f0ff;">0.00t</span>
+      </div>
+      <div class="vab-bottom-stat">
+        <span class="label">DRY MASS:</span>
+        <span id="vab-mass-dry" class="val">0.00t</span>
+      </div>
+      <div class="vab-bottom-stat">
+        <span class="label">MAX THRUST:</span>
+        <span id="vab-thrust-max" class="val">0kN</span>
+      </div>
+      <div class="vab-bottom-stat">
+        <span class="label">EST. DELTA-V:</span>
+        <span id="vab-deltav" class="val" style="color: #00ff66;">0 m/s</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ==========================================
+       FLIGHT SIMULATOR HUD OVERLAY
+       ========================================== -->
+  <div id="flight-screen" class="hud-screen flight-layout hidden">
+    <!-- Top Bar: Orbit Targets & Telemetry -->
+    <header class="hud-top-bar">
+      <div class="hud-card location-info">
+        <span class="hud-label">COSMIC LOCATION</span>
+        <span class="hud-value" id="hud-sector">α-CENTAURI SYSTEM</span>
+      </div>
+      
+      <div class="hud-card target-info">
+        <span class="hud-label">CELESTIAL RADAR TARGET</span>
+        <span class="hud-value glowing-cyan" id="hud-target-name">NONE (Click Planet/Star)</span>
+        <div class="target-details" id="hud-target-details">
+          <span>MASS: --</span>
+          <span>TEMP: --</span>
+          <span>ORBIT: --</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Left Console: Navigation Computers & Teleport -->
+    <div class="hud-side-panel left-panel">
+      <div class="hud-panel-header">
+        <span>▲ ORBIT NAVIGATION SYSTEM</span>
+      </div>
+      <div class="hud-panel-content">
+        <!-- Teleport targets list -->
+        <div class="hud-group">
+          <span class="hud-group-label">CELESTIAL BODIES</span>
+          <div class="targets-list" id="teleport-list">
+            <button class="btn btn-nav" data-target="sun">Sol (Sun)</button>
+            <button class="btn btn-nav" data-target="mercury">Mercury</button>
+            <button class="btn btn-nav" data-target="venus">Venus</button>
+            <button class="btn btn-nav active" data-target="earth">Earth (Reality)</button>
+            <button class="btn btn-nav" data-target="moon">The Moon</button>
+            <button class="btn btn-nav" data-target="iss">ISS-Horizon</button>
+            <button class="btn btn-nav" data-target="mars">Mars</button>
+            <button class="btn btn-nav" data-target="jupiter">Jupiter</button>
+            <button class="btn btn-nav" data-target="saturn">Saturn</button>
+          </div>
+        </div>
+
+        <!-- Controls helper cheat sheet -->
+        <div class="hud-group">
+          <span class="hud-group-label">FLIGHT KEY BINDINGS</span>
+          <div class="keys-grid">
+            <div><span class="key">W</span><span class="key">S</span> <span>Pitch (Tilt)</span></div>
+            <div><span class="key">A</span><span class="key">D</span> <span>Yaw (Turn)</span></div>
+            <div><span class="key">Q</span><span class="key">E</span> <span>Roll (Rotate)</span></div>
+            <div><span class="key">I</span><span class="key">K</span> <span>Thrust +/-</span></div>
+            <div><span class="key">SPACE</span> <span>TRIGGER STAGE</span></div>
+            <div><span class="key">H</span> <span>Toggle Dampeners</span></div>
+            <div><span class="key">ARROWS</span> <span>Camera Orbit</span></div>
+            <div><span class="key">[</span><span class="key">]</span> <span>Camera Zoom</span></div>
+          </div>
+        </div>
+
+        <button id="btn-return-vab" class="btn btn-danger" style="margin-top: 10px; width: 100%;">RETURN TO VAB</button>
+      </div>
+    </div>
+
+    <!-- Right Console: Spacecraft Physics Data -->
+    <div class="hud-side-panel right-panel">
+      <div class="hud-panel-header">
+        <span>▼ ORBITAL PHYSICS LOG</span>
+      </div>
+      <div class="hud-panel-content">
+        <!-- Spacecraft velocity -->
+        <div class="flight-stat">
+          <span class="hud-label">VELOCITY RADIAL</span>
+          <div class="stat-big"><span id="hud-velocity">0.00</span> <span class="unit">km/s</span></div>
+        </div>
+
+        <div class="flight-stat">
+          <span class="hud-label">HEIGHT ABOVE SURFACE</span>
+          <div class="stat-big"><span id="hud-altitude">0</span> <span class="unit" id="hud-altitude-unit">m</span></div>
+        </div>
+
+        <!-- Fuel propellant metrics -->
+        <div class="flight-stat">
+          <span class="hud-label">PROPELLANT RESERVE</span>
+          <div class="bar-container">
+            <div id="propellant-bar" class="fill-bar" style="width: 100%"></div>
+          </div>
+          <div class="stat-val-display"><span id="hud-propellant-pct">100</span>% (<span id="hud-propellant-mass">0.0t</span>)</div>
+        </div>
+
+        <!-- Active Stage -->
+        <div class="flight-stat">
+          <span class="hud-label">ACTIVE STAGE</span>
+          <div class="stat-big glowing-cyan" style="font-size: 1.8rem;">STAGE <span id="hud-active-stage">0</span></div>
+        </div>
+
+        <!-- Thrust settings -->
+        <div class="flight-stat">
+          <span class="hud-label">ENGINE THROTTLE</span>
+          <div class="bar-container">
+            <div id="thrust-bar" class="fill-bar" style="width: 0%"></div>
+          </div>
+          <div class="stat-val-display"><span id="hud-thrust-pct">0</span>%</div>
+        </div>
+
+        <!-- Dampeners status -->
+        <div class="flight-stat">
+          <div class="dampeners-row">
+            <span class="hud-label">INERTIAL DAMPENERS</span>
+            <span id="hud-dampeners" class="damp-active">ACTIVE</span>
+          </div>
+        </div>
+
+        <!-- Time Warp settings -->
+        <div class="flight-stat">
+          <span class="hud-label">TIME WARP CONTROL</span>
+          <div class="warp-controls">
+            <button id="btn-warp-down" class="btn btn-warp">&lt;</button>
+            <span id="hud-dilation-val" class="warp-val">1x</span>
+            <button id="btn-warp-up" class="btn btn-warp">&gt;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Center navigation target lines and terminal log -->
+    <div class="hud-bottom-center">
+      <div class="flight-crosshair">
+        <div class="reticle-circle"></div>
+        <div class="reticle-ticks"></div>
+      </div>
+      <div class="log-console">
+        <span class="log-prefix">&gt; </span><span id="log-text">FLIGHT INITIALIZED. PRESS 'I' TO INCREASE THROTTLE.</span>
+      </div>
+    </div>
+    
+    <!-- Camera POV Controls widget in bottom right -->
+    <div class="hud-camera-controls">
+      <button id="btn-cam-zoom-in" class="btn btn-cam" title="Zoom In">[ ZOOM + ]</button>
+      <button id="btn-cam-zoom-out" class="btn btn-cam" title="Zoom Out">[ ZOOM - ]</button>
+      <button id="btn-cam-reset" class="btn btn-cam" title="Reset Camera behind Rocket">[ RESET POV ]</button>
+    </div>
+
+    <div class="mobile-flight-controls" aria-label="Touch flight controls">
+      <div class="touch-pad touch-pad-attitude">
+        <button class="touch-btn" data-hold-key="w" aria-label="Pitch down">W</button>
+        <div class="touch-row">
+          <button class="touch-btn" data-hold-key="a" aria-label="Yaw left">A</button>
+          <button class="touch-btn touch-btn-stage" id="btn-touch-stage" aria-label="Stage">STAGE</button>
+          <button class="touch-btn" data-hold-key="d" aria-label="Yaw right">D</button>
+        </div>
+        <button class="touch-btn" data-hold-key="s" aria-label="Pitch up">S</button>
+      </div>
+      <div class="touch-pad touch-pad-engine">
+        <button class="touch-btn" data-hold-key="q" aria-label="Roll left">Q</button>
+        <button class="touch-btn touch-btn-throttle" data-hold-key="i" aria-label="Throttle up">THR +</button>
+        <button class="touch-btn touch-btn-throttle" data-hold-key="k" aria-label="Throttle down">THR -</button>
+        <button class="touch-btn" data-hold-key="e" aria-label="Roll right">E</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

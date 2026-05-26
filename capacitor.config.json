@@ -1,0 +1,12 @@
+{
+  "appId": "com.cosmos.spaceengine3d",
+  "appName": "Cosmos 3D Space Simulator",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
